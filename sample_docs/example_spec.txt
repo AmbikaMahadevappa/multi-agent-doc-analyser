@@ -1,0 +1,132 @@
+TECHNICAL SPECIFICATION
+Vehicle Proximity Sensor System — Ultrasonic Array Module
+Document ID : VPS-SPEC-2024-007
+Version      : 2.1
+Date         : 14 February 2024
+Author       : Advanced Driver Assistance Systems (ADAS) Engineering Team
+Status       : APPROVED FOR PRODUCTION VALIDATION
+
+────────────────────────────────────────────────────────────────
+1. PURPOSE AND SCOPE
+────────────────────────────────────────────────────────────────
+This document specifies the design requirements, performance parameters,
+interface definitions, and validation criteria for the Ultrasonic Proximity
+Sensor Array (UPSA) module used in low-speed manoeuvring assistance systems.
+
+The UPSA module provides distance measurement for objects within 0.15 m to
+2.50 m of the vehicle perimeter during parking and low-speed manoeuvres
+(≤ 30 km/h). It feeds processed distance data to the Central ADAS ECU via
+a LIN bus interface.
+
+This specification applies to:
+  - Front bumper sensor array (4 sensors, designation: UPSA-F)
+  - Rear bumper sensor array (4 sensors, designation: UPSA-R)
+
+Out of scope: Camera-based object detection, radar systems, and highway
+assist functions are covered under separate specifications (REF: ADAS-CAM-003,
+ADAS-RAD-012).
+
+────────────────────────────────────────────────────────────────
+2. APPLICABLE STANDARDS AND REFERENCES
+────────────────────────────────────────────────────────────────
+  [1] ISO 26262:2018   — Functional Safety for Road Vehicles (ASIL-B target)
+  [2] ISO 17386:2010   — Manoeuvrability Aids — Low Speed Obstacle Detection
+  [3] IEC 61000-4-3    — Electromagnetic Susceptibility Requirements
+  [4] AUTOSAR 4.4.0    — Software Architecture Standard
+  [5] DIN EN 60529     — IP67 Ingress Protection Rating
+  [6] REF: ECU-LIN-INT-005 — LIN Bus Interface Protocol Specification
+  NOTE: Reference [6] is currently under revision (v3.2 pending approval).
+        Interface timing parameters in Section 5.3 may require update.
+
+────────────────────────────────────────────────────────────────
+3. SYSTEM OVERVIEW
+────────────────────────────────────────────────────────────────
+The UPSA module consists of:
+  - 8x piezoelectric ultrasonic transducers (40 kHz operating frequency)
+  - 1x signal conditioning PCB per bumper unit
+  - 1x microcontroller (ARM Cortex-M0+) for echo processing per unit
+  - LIN bus transceiver for ECU communication
+
+Operating Principle:
+  Each transducer emits a 40 kHz burst (burst duration: 300 µs) and listens
+  for the reflected echo. Time-of-flight (ToF) measurement is used to
+  calculate distance. Temperature compensation is applied using an onboard
+  NTC thermistor to correct for speed-of-sound variation.
+
+────────────────────────────────────────────────────────────────
+4. PERFORMANCE REQUIREMENTS
+────────────────────────────────────────────────────────────────
+4.1 Distance Measurement
+  - Operating range    : 0.15 m – 2.50 m
+  - Blind zone         : < 0.15 m (WARNING: objects closer than 0.15 m are
+                         not detectable; this must be communicated to the
+                         driver via HMI)
+  - Measurement accuracy: ±30 mm at ≤ 1.00 m; ±50 mm at > 1.00 m
+  - Update rate        : 50 ms cycle time (20 Hz)
+  - Resolution         : 10 mm
+
+4.2 Environmental Operating Conditions
+  - Operating temperature: -40°C to +85°C
+  - Storage temperature  : -40°C to +105°C
+  - Humidity             : 0–95% non-condensing
+  - Ingress protection   : IP67 (dust-tight, immersion up to 1 m for 30 min)
+  - Vibration            : Per ISO 16750-3 (road vehicle vibration profile)
+
+4.3 Detection Characteristics
+  - Minimum detectable object: cylindrical object ≥ 50 mm diameter
+  - False positive rate      : < 2% under standard test conditions
+  - Cross-talk suppression   : Multiplexed firing sequence (TBD: exact
+                               multiplexing schedule under review — see
+                               open issue OI-047)
+
+────────────────────────────────────────────────────────────────
+5. INTERFACE SPECIFICATION
+────────────────────────────────────────────────────────────────
+5.1 Power Supply
+  - Nominal supply voltage: 12V DC (range: 9V – 16V)
+  - Current consumption   : ≤ 80 mA per sensor unit (active)
+  - Reverse polarity protection: Required
+
+5.2 LIN Bus Interface
+  - Protocol version: LIN 2.2A
+  - Baud rate       : 19.2 kbps
+  - Node address    : Configurable via diagnostic interface (default: 0x1A front, 0x1B rear)
+  - Data frame format: As per REF ECU-LIN-INT-005 (PENDING REVISION — see Section 2)
+
+5.3 Diagnostic Interface
+  - UDS (Unified Diagnostic Services) over LIN
+  - Fault codes: Proprietary DTC scheme (DTC list: Appendix B — TBD)
+
+────────────────────────────────────────────────────────────────
+6. SAFETY REQUIREMENTS (ISO 26262 — ASIL-B)
+────────────────────────────────────────────────────────────────
+  - Hardware fault tolerance: single-point fault detection required
+  - Safe state: sensor failure shall set a warning flag on LIN bus within
+    one measurement cycle (50 ms) and suppress distance output
+  - Plausibility check: consecutive identical readings flagged as potential
+    sensor freeze fault after 500 ms
+  - NOTE: ASIL decomposition analysis not yet finalised (see OI-031).
+    Functional safety concept document (FSC-ADAS-007) is referenced but
+    not yet formally released.
+
+────────────────────────────────────────────────────────────────
+7. VALIDATION AND TEST CRITERIA
+────────────────────────────────────────────────────────────────
+  - All requirements in Section 4 shall be verified via bench test prior
+    to vehicle integration
+  - EMC testing per IEC 61000-4-3 required before homologation submission
+  - Temperature cycling: 100 cycles per AEC-Q100 Grade 1
+  - Lifetime target: 10 years / 150,000 km (to be validated via accelerated
+    aging — test protocol under development)
+
+────────────────────────────────────────────────────────────────
+8. OPEN ISSUES
+────────────────────────────────────────────────────────────────
+  OI-031: ASIL decomposition for proximity sensing function — OPEN
+  OI-047: Multiplexing schedule for cross-talk suppression — OPEN
+  OI-052: DTC list for Appendix B — NOT STARTED
+  OI-061: Thermal derating curve above +70°C — DATA REQUIRED FROM SUPPLIER
+
+────────────────────────────────────────────────────────────────
+END OF DOCUMENT
+────────────────────────────────────────────────────────────────
